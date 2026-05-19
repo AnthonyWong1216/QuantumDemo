@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>量子光子偏振測量 3D 模擬器</title>
+    <!-- Tailwind CSS for UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons for beautiful dashboard icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js for 3D simulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Three.js OrbitControls for camera interaction -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Chart.js for statistical results visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0b0f19;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        /* Hide scrollbars but keep functionality */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- HEADER -->
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                    <i data-lucide="orbit" class="w-6 h-6 animate-spin-slow"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        量子光子偏振測量模擬器
+                        <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30 font-mono">Qubit Physics</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">基於偏振 Qubit 的態疊加與測量塌縮 (Malus's Law)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="text-xs text-slate-400 text-right hidden sm:block">
+                    <span class="block text-slate-300 font-semibold">隨機塌縮核心</span>
+                    Math.random() &lt; cos²(Δθ)
+                </div>
+                <div class="h-8 w-[1px] bg-slate-800 hidden sm:block"></div>
+                <div class="flex gap-2">
+                    <button id="btn-view-sim" class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-500/20">
+                        <i data-lucide="eye" class="w-4 h-4"></i> 3D 實驗室
+                    </button>
+                    <button id="btn-view-theory" class="px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors flex items-center gap-2 text-slate-300">
+                        <i data-lucide="book-open" class="w-4 h-4"></i> 量子原理解析
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BODY -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT CONTROL PANEL (4 Columns) -->
+        <section class="lg:col-span-4 flex flex-col gap-6">
+            <!-- Parameter Settings -->
+            <div class="glass-panel rounded-2xl p-5 shadow-xl">
+                <div class="flex items-center gap-2 mb-4 border-b border-slate-800 pb-3">
+                    <i data-lucide="sliders" class="w-5 h-5 text-indigo-400"></i>
+                    <h2 class="font-semibold text-slate-200">物理參數控制區</h2>
+                </div>
+
+                <div class="space-y-5">
+                    <!-- Visualization Mode -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">傳播模式</label>
+                        <div class="grid grid-cols-2 gap-2 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                            <button id="mode-classical" class="py-2 text-xs font-medium rounded-md transition-all bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                經典連續波
+                            </button>
+                            <button id="mode-quantum" class="py-2 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-slate-200">
+                                單光子量子態
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Emitter Angle (Theta) -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-sm font-medium text-slate-300 flex items-center gap-1">
+                                光子初始偏振角 <span class="text-indigo-400 font-mono font-bold">θ</span>
+                            </label>
+                            <span id="lbl-theta" class="text-sm font-mono text-indigo-300 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">30°</span>
+                        </div>
+                        <input type="range" id="slide-theta" min="0" max="180" value="30" class="w-full accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>0° (水平)</span>
+                            <span>45°</span>
+                            <span>90° (垂直)</span>
+                            <span>135°</span>
+                            <span>180°</span>
+                        </div>
+                    </div>
+
+                    <!-- Polarizer Angle (Phi) -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-sm font-medium text-slate-300 flex items-center gap-1">
+                                偏振片(測量)角度 <span class="text-emerald-400 font-mono font-bold">φ</span>
+                            </label>
+                            <span id="lbl-phi" class="text-sm font-mono text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">90°</span>
+                        </div>
+                        <input type="range" id="slide-phi" min="0" max="180" value="90" class="w-full accent-emerald-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                            <span>0° (水平)</span>
+                            <span>45°</span>
+                            <span>90° (垂直)</span>
+                            <span>135°</span>
+                            <span>180°</span>
+                        </div>
+                    </div>
+
+                    <!-- Math Helper -->
+                    <div class="bg-indigo-950/30 rounded-xl p-3 border border-indigo-900/30 space-y-2">
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>角度差 (Δθ = φ - θ)</span>
+                            <span id="lbl-delta-theta" class="font-mono text-indigo-300">60°</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Aligned 概率 P(1) = cos²(Δθ)</span>
+                            <span id="lbl-prob-true" class="font-mono text-emerald-400 font-bold">25.00%</span>
+                        </div>
+                        <div class="flex justify-between text-xs text-slate-400">
+                            <span>Anti-Aligned 概率 P(0) = sin²(Δθ)</span>
+                            <span id="lbl-prob-false" class="font-mono text-blue-400 font-bold">75.00%</span>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Speed & Controls -->
+                    <div class="flex gap-2 pt-2">
+                        <button id="btn-trigger" class="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20">
+                            <i data-lucide="play" class="w-4 h-4"></i> 發射單光子
+                        </button>
+                        <button id="btn-reset" class="py-3 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl transition-all" title="重設相機角度與參數">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Experiment 1: Sequential Measurement Panel -->
+            <div class="glass-panel rounded-2xl p-5 shadow-xl flex-1 flex flex-col min-h-[280px]">
+                <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="list-ordered" class="w-5 h-5 text-purple-400"></i>
+                        <h2 class="font-semibold text-slate-200">實驗一：連續狀態塌縮</h2>
+                    </div>
+                    <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded border border-purple-500/30">同光子路徑</span>
+                </div>
+                
+                <p class="text-xs text-slate-400 mb-4">
+                    模擬 Java 程式：光子初始偏振為 <span class="text-indigo-400 font-semibold font-mono">90°</span>，連續對 <span class="text-emerald-400 font-semibold font-mono">45°</span> 的量測設備投射 5 次。觀察狀態如何隨每次測量而改變。
+                </p>
+
+                <div class="flex-1 flex flex-col justify-between">
+                    <div id="seq-steps-container" class="space-y-2 mb-4">
+                        <!-- Step results will be generated dynamically here -->
+                        <div class="text-center text-xs text-slate-500 py-6">尚未開始，點擊下方按鈕執行模擬</div>
+                    </div>
+                    
+                    <button id="btn-run-exp1" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20">
+                        <i data-lucide="play-circle" class="w-4 h-4"></i> 執行 Java 實驗 1
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- CENTER & RIGHT AREA: 3D view + Exp 2 (8 Columns) -->
+        <section class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- tab-content-simulator (Default) -->
+            <div id="tab-simulator" class="flex flex-col gap-6">
+                <!-- 3D Viewer Container -->
+                <div class="glass-panel rounded-2xl overflow-hidden shadow-xl flex flex-col">
+                    <div class="bg-slate-950/60 px-5 py-3 border-b border-slate-800 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping"></span>
+                            <span class="text-sm font-semibold text-slate-200">3D 偏振傳播實時渲染 (可用滑鼠旋轉/縮放觀看)</span>
+                        </div>
+                        <!-- Color labels -->
+                        <div class="flex gap-4 text-[10px]">
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-indigo-500"></span> 初始偏振</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Aligned (1)</span>
+                            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Anti-Aligned (0)</span>
+                        </div>
+                    </div>
+                    
+                    <!-- ThreeJS Canvas -->
+                    <div class="relative w-full h-[400px] bg-slate-950">
+                        <div id="three-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+                        
+                        <!-- Measurement Banner Overlay -->
+                        <div id="collapse-banner" class="absolute bottom-4 left-4 right-4 glass-card p-3 rounded-xl hidden flex items-center justify-between border-l-4 border-l-indigo-500 transition-all">
+                            <div class="flex items-center gap-3">
+                                <div id="collapse-icon-bg" class="p-1.5 rounded-lg text-white">
+                                    <i id="collapse-icon" data-lucide="check" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div id="collapse-title" class="text-xs font-bold uppercase tracking-wider">光子已塌縮！</div>
+                                    <div id="collapse-desc" class="text-xs text-slate-400">偏振態已更改。</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-slate-400">測量結果</div>
+                                <div id="collapse-result" class="text-lg font-mono font-black">TRUE (1)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Experiment 2: Statistical Simulation Panel (Java Experiment 2 equivalent) -->
+                <div class="glass-panel rounded-2xl p-5 shadow-xl">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5 text-emerald-400"></i>
+                            <h2 class="font-semibold text-slate-200">實驗二：1000 次蒙地卡羅統計</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="btn-run-exp2" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/20">
+                                <i data-lucide="play" class="w-3.5 h-3.5"></i> 運行 1000 次測量
+                            </button>
+                            <button id="btn-clear-exp2" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-all">
+                                清除結果
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                        <!-- Statistics Data Cards -->
+                        <div class="md:col-span-5 space-y-3">
+                            <p class="text-xs text-slate-400">
+                                將光子初始偏振設為 <span class="text-indigo-400 font-bold font-mono">θ</span>，投影到量測角度 <span class="text-emerald-400 font-bold font-mono">φ</span>，模擬 Java 中的 1000 次隨機迴圈並直接計算統計期望指標：
+                            </p>
+                            
+                            <!-- Statistics output Grid -->
+                            <div class="grid grid-cols-2 gap-2 font-mono">
+                                <div class="glass-card p-3 rounded-xl border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 uppercase">總測量數 (N)</div>
+                                    <div id="stat-n" class="text-lg font-bold text-slate-200">0</div>
+                                </div>
+                                <div class="glass-card p-3 rounded-xl border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 uppercase">True 比例 (1)</div>
+                                    <div id="stat-true-ratio" class="text-lg font-bold text-emerald-400">0.00%</div>
+                                </div>
+                                <div class="glass-card p-3 rounded-xl border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 uppercase">平均值 (Mean)</div>
+                                    <div id="stat-mean" class="text-lg font-bold text-indigo-400">0.000</div>
+                                </div>
+                                <div class="glass-card p-3 rounded-xl border border-slate-800">
+                                    <div class="text-[10px] text-slate-500 uppercase">標準差 (SD)</div>
+                                    <div id="stat-sd" class="text-lg font-bold text-amber-400">0.000</div>
+                                </div>
+                            </div>
+                            
+                            <div class="text-[10px] text-slate-500">
+                                mapping對照表：True (Aligned) 對應 1.0, False (Anti-aligned) 對應 0.0。
+                            </div>
+                        </div>
+
+                        <!-- Graph Chart -->
+                        <div class="md:col-span-7 h-[180px] bg-slate-950/40 p-2 rounded-xl border border-slate-900 flex items-center justify-center relative">
+                            <canvas id="chart-statistics"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- tab-content-theory (Hidden by default) -->
+            <div id="tab-theory" class="glass-panel rounded-2xl p-6 shadow-xl hidden space-y-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+                        <i data-lucide="info" class="w-6 h-6 text-indigo-400"></i>
+                        偏振光子 Qubit 測量的量子物理學
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">從經典波動光學到單光子量子塌縮</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <h3 class="text-sm font-semibold text-indigo-400 border-l-2 border-indigo-500 pl-2">1. 經典力學 vs 量子力學的分野</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            在經典波動光學中，當一束強度為 $I_0$ 的偏振光穿過角度為 $\phi$ 的偏振片時，穿透過去的偏振光振幅會衰減。根據 **馬路斯定律 (Malus's Law)**，透射強度為：
+                            <br>
+                            <span class="block text-center font-mono my-3 text-indigo-300 text-base bg-indigo-950/40 p-2 rounded border border-indigo-900/30">I = I₀ · cos²(φ - θ)</span>
+                            但在量子力學的世界裡，**光子不能被分割**。當一個單一光子到達偏振片時，它無法「只透射一部分」。它必須做出一種隨機抉擇——**全過（True）**或**全不過（False）**。
+                        </p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-sm font-semibold text-emerald-400 border-l-2 border-emerald-500 pl-2">2. 量子偏振 Qubit</h3>
+                        <p class="text-sm text-slate-300 leading-relaxed">
+                            我們可以將光子的偏振狀態寫成兩個相互正交基底的線性疊加（Superposition）：
+                            <br>
+                            <span class="block text-center font-mono my-3 text-emerald-300 text-base bg-emerald-950/40 p-2 rounded border border-emerald-900/30">|ψ⟩ = cos(Δθ)|Aligned⟩ + sin(Δθ)|Anti-Aligned⟩</span>
+                            當我們實施測量時，波函數被迫 **塌縮 (Collapse)** 進入其中的一個本徵態：
+                        </p>
+                        <ul class="list-disc list-inside text-xs text-slate-400 space-y-1 pl-2">
+                            <li>以 <span class="text-emerald-400 font-mono">cos²(Δθ)</span> 的機率得到 <span class="text-emerald-400 font-semibold">True (1)</span>，偏振態更新為 <span class="text-emerald-400 font-mono">φ</span></li>
+                            <li>以 <span class="text-blue-400 font-mono">sin²(Δθ)</span> 的機率得到 <span class="text-blue-400 font-semibold">False (0)</span>，偏振態更新為 <span class="text-blue-400 font-mono">φ + 90°</span></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-950/20 p-4 rounded-xl border border-indigo-900/30">
+                    <h3 class="text-sm font-semibold text-slate-200 mb-2 flex items-center gap-1">
+                        <i data-lucide="code" class="w-4 h-4 text-indigo-400"></i> 對應 Java 代碼邏輯分析
+                    </h3>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        您提供的 Java 程式碼完全符合此原理。
+                        在 `measurePolarization(double angle)` 函數中，`Math.random() < probabilityAlign` 決定了系統的塌縮路徑。如果是 `true`，`polarizationAngle` 直接更新為 `angle`；如果是 `false`（Anti-aligned），`polarizationAngle` 則被更新為正交的 `angle + 90` 度。
+                        這種「測量導致狀態發生不可逆的改變（塌縮）」即是量子力學最根本的核心。
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto border-t border-slate-900 bg-slate-950/60 py-4 text-center text-xs text-slate-500">
+        <p>© 2026 量子物理交互式模擬實驗室. 採用 WebGL & Three.js 高效能繪圖核心.</p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // DOM Elements
+        const btnViewSim = document.getElementById('btn-view-sim');
+        const btnViewTheory = document.getElementById('btn-view-theory');
+        const tabSimulator = document.getElementById('tab-simulator');
+        const tabTheory = document.getElementById('tab-theory');
+
+        const modeClassical = document.getElementById('mode-classical');
+        const modeQuantum = document.getElementById('mode-quantum');
+
+        const slideTheta = document.getElementById('slide-theta');
+        const slidePhi = document.getElementById('slide-phi');
+        const lblTheta = document.getElementById('lbl-theta');
+        const lblPhi = document.getElementById('lbl-phi');
+        const lblDeltaTheta = document.getElementById('lbl-delta-theta');
+        const lblProbTrue = document.getElementById('lbl-prob-true');
+        const lblProbFalse = document.getElementById('lbl-prob-false');
+
+        const btnTrigger = document.getElementById('btn-trigger');
+        const btnReset = document.getElementById('btn-reset');
+        const btnRunExp1 = document.getElementById('btn-run-exp1');
+        const btnRunExp2 = document.getElementById('btn-run-exp2');
+        const btnClearExp2 = document.getElementById('btn-clear-exp2');
+
+        const seqStepsContainer = document.getElementById('seq-steps-container');
+        const collapseBanner = document.getElementById('collapse-banner');
+        const collapseResult = document.getElementById('collapse-result');
+        const collapseDesc = document.getElementById('collapse-desc');
+        const collapseIcon = document.getElementById('collapse-icon');
+        const collapseIconBg = document.getElementById('collapse-icon-bg');
+
+        const statN = document.getElementById('stat-n');
+        const statTrueRatio = document.getElementById('stat-true-ratio');
+        const statMean = document.getElementById('stat-mean');
+        const statSd = document.getElementById('stat-sd');
+
+        // State variables
+        let isQuantumMode = false;
+        let theta = 30; // Initial polarization angle
+        let phi = 90;   // Measurement angle
+        let isQuantumPacketActive = false;
+        let quantumPacketT = 0;
+        let lastMeasurementResult = null; // null, true, false
+        let measurementHasOccurred = false;
+
+        // Statistics data
+        let totalCount = 0;
+        let trueCount = 0;
+        let falseCount = 0;
+
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Navigation tab switching
+        btnViewSim.addEventListener('click', () => {
+            tabSimulator.classList.remove('hidden');
+            tabTheory.classList.add('hidden');
+            btnViewSim.classList.add('bg-indigo-600');
+            btnViewSim.classList.remove('bg-slate-800');
+            btnViewTheory.classList.add('bg-slate-800');
+            btnViewTheory.classList.remove('bg-indigo-600');
+        });
+
+        btnViewTheory.addEventListener('click', () => {
+            tabTheory.classList.remove('hidden');
+            tabSimulator.classList.add('hidden');
+            btnViewTheory.classList.add('bg-indigo-600');
+            btnViewTheory.classList.remove('bg-slate-800');
+            btnViewSim.classList.add('bg-slate-800');
+            btnViewSim.classList.remove('bg-indigo-600');
+        });
+
+        // Mode Toggles
+        modeClassical.addEventListener('click', () => {
+            isQuantumMode = false;
+            modeClassical.className = "py-2 text-xs font-medium rounded-md transition-all bg-indigo-500/20 text-indigo-300 border border-indigo-500/30";
+            modeQuantum.className = "py-2 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-slate-200";
+            btnTrigger.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i> 重啟連續波`;
+            lucide.createIcons();
+            hideBanner();
+            resetWavePacket();
+        });
+
+        modeQuantum.addEventListener('click', () => {
+            isQuantumMode = true;
+            modeQuantum.className = "py-2 text-xs font-medium rounded-md transition-all bg-indigo-500/20 text-indigo-300 border border-indigo-500/30";
+            modeClassical.className = "py-2 text-xs font-medium rounded-md transition-all text-slate-400 hover:text-slate-200";
+            btnTrigger.innerHTML = `<i data-lucide="zap" class="w-4 h-4"></i> 發射單量子光子`;
+            lucide.createIcons();
+            hideBanner();
+            resetWavePacket();
+        });
+
+        // Update visual parameters
+        function updateParameters() {
+            theta = parseFloat(slideTheta.value);
+            phi = parseFloat(slidePhi.value);
+
+            lblTheta.innerText = `${theta}°`;
+            lblPhi.innerText = `${phi}°`;
+
+            const diff = Math.abs(phi - theta);
+            lblDeltaTheta.innerText = `${diff.toFixed(1)}°`;
+
+            // Calculate probabilities
+            const rad = diff * Math.PI / 180;
+            const probTrue = Math.cos(rad) * Math.cos(rad);
+            const probFalse = 1 - probTrue;
+
+            lblProbTrue.innerText = `${(probTrue * 100).toFixed(2)}%`;
+            lblProbFalse.innerText = `${(probFalse * 100).toFixed(2)}%`;
+
+            // Update 3D scene representation angles
+            updateThreeSceneAngles();
+        }
+
+        slideTheta.addEventListener('input', updateParameters);
+        slidePhi.addEventListener('input', updateParameters);
+
+        // Reset App
+        btnReset.addEventListener('click', () => {
+            slideTheta.value = 30;
+            slidePhi.value = 90;
+            updateParameters();
+            resetCamera();
+            hideBanner();
+        });
+
+        function showBanner(result) {
+            collapseBanner.classList.remove('hidden');
+            if (result === true) {
+                collapseBanner.className = "absolute bottom-4 left-4 right-4 glass-card p-3 rounded-xl border-l-4 border-l-emerald-500 flex items-center justify-between transition-all animate-bounce";
+                collapseIconBg.className = "p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400";
+                collapseIcon.setAttribute('data-lucide', 'check-circle-2');
+                collapseResult.className = "text-lg font-mono font-black text-emerald-400";
+                collapseResult.innerText = "ALIGNED (True | 1)";
+                collapseDesc.innerText = `光子成功透射，偏振態塌縮至 φ (${phi}°)`;
+            } else {
+                collapseBanner.className = "absolute bottom-4 left-4 right-4 glass-card p-3 rounded-xl border-l-4 border-l-blue-500 flex items-center justify-between transition-all animate-bounce";
+                collapseIconBg.className = "p-1.5 rounded-lg bg-blue-500/20 text-blue-400";
+                collapseIcon.setAttribute('data-lucide', 'x-circle');
+                collapseResult.className = "text-lg font-mono font-black text-blue-400";
+                collapseResult.innerText = "ANTI-ALIGNED (False | 0)";
+                collapseDesc.innerText = `光子反射偏折，偏振態塌縮至 φ + 90° (${(phi+90)%180}°)`;
+            }
+            lucide.createIcons();
+        }
+
+        function hideBanner() {
+            collapseBanner.classList.add('hidden');
+        }
+
+        // EXPERIMENT 1 LOGIC (Sequential Simulation)
+        btnRunExp1.addEventListener('click', () => {
+            seqStepsContainer.innerHTML = '';
+            
+            // Initial photon state
+            let currentAngle = 90; 
+            const targetAngle = 45; 
+            
+            let htmlStr = `
+                <div class="flex items-center justify-between bg-indigo-950/20 px-3 py-1.5 rounded-lg text-xs border border-indigo-900/30">
+                    <span class="text-slate-400">初始狀態</span>
+                    <span class="font-mono text-indigo-300 font-bold">偏振角: ${currentAngle}°</span>
+                </div>
+            `;
+
+            for (let i = 1; i <= 5; i++) {
+                const diff = targetAngle - currentAngle;
+                const cosDiff = Math.cos(diff * Math.PI / 180);
+                const probTrue = cosDiff * cosDiff;
+                const rVal = Math.random();
+                const success = rVal < probTrue;
+
+                // State projection (collapse)
+                if (success) {
+                    currentAngle = targetAngle;
+                } else {
+                    currentAngle = targetAngle + 90;
+                }
+
+                htmlStr += `
+                    <div class="flex items-center justify-between bg-slate-900/80 p-2 rounded-xl text-xs border border-slate-800 transition-all hover:border-slate-700">
+                        <div class="flex items-center gap-2">
+                            <span class="w-5 h-5 flex items-center justify-center rounded-full bg-slate-800 text-slate-400 text-[10px] font-mono">${i}</span>
+                            <span class="text-slate-300">量測 45°</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="font-mono text-[10px] text-slate-500">P(1)=${(probTrue*100).toFixed(0)}%</span>
+                            <span class="font-mono font-bold px-2 py-0.5 rounded ${success ? 'bg-emerald-500/15 text-emerald-400' : 'bg-blue-500/15 text-blue-400'}">
+                                ${success ? 'True (1)' : 'False (0)'}
+                            </span>
+                            <span class="font-mono text-indigo-300">→ ${currentAngle}°</span>
+                        </div>
+                    </div>
+                `;
+            }
+            seqStepsContainer.innerHTML = htmlStr;
+        });
+
+        // CHART SETUP
+        const ctx = document.getElementById('chart-statistics').getContext('2d');
+        const statsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Anti-Aligned (0)', 'Aligned (1)'],
+                datasets: [{
+                    label: '測量次數',
+                    data: [0, 0],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.6)',  // Blue
+                        'rgba(16, 185, 129, 0.6)'  // Emerald
+                    ],
+                    borderColor: [
+                        '#3b82f6',
+                        '#10b981'
+                    ],
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => ` 次數: ${context.raw}次`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#94a3b8', font: { size: 10 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#94a3b8', font: { size: 9 }, precision: 0 }
+                    }
+                }
+            }
+        });
+
+        function updateChartAndStats() {
+            // Update chart data
+            statsChart.data.datasets[0].data = [falseCount, trueCount];
+            statsChart.update();
+
+            // Calculate Mean & Standard Deviation
+            const total = trueCount + falseCount;
+            if (total === 0) {
+                statN.innerText = '0';
+                statTrueRatio.innerText = '0.00%';
+                statMean.innerText = '0.000';
+                statSd.innerText = '0.000';
+                return;
+            }
+
+            // Mean = (1 * trueCount + 0 * falseCount) / total
+            const mean = (1.0 * trueCount) / total;
+            
+            // Variance = ((1 - mean)^2 * trueCount + (0 - mean)^2 * falseCount) / total
+            const variance = (((1.0 - mean) * (1.0 - mean) * trueCount) + (mean * mean * falseCount)) / total;
+            const sd = Math.sqrt(variance);
+
+            // Update UI
+            statN.innerText = total.toLocaleString();
+            statTrueRatio.innerText = `${(mean * 100).toFixed(2)}%`;
+            statMean.innerText = mean.toFixed(4);
+            statSd.innerText = sd.toFixed(4);
+        }
+
+        // EXPERIMENT 2 LOGIC (1000 Times Fast Loop)
+        btnRunExp2.addEventListener('click', () => {
+            // Read active angles from simulator panel sliders
+            const activeTheta = theta;
+            const activePhi = phi;
+
+            for (let i = 0; i < 1000; i++) {
+                // Equivalent to: PhotonPolarizationMeasurement photon = new PhotonPolarizationMeasurement(activeTheta);
+                // measurePolarization(activePhi);
+                const diff = activePhi - activeTheta;
+                const cosDiff = Math.cos(diff * Math.PI / 180);
+                const pAlign = cosDiff * cosDiff;
+
+                if (Math.random() < pAlign) {
+                    trueCount++;
+                } else {
+                    falseCount++;
+                }
+                totalCount++;
+            }
+
+            updateChartAndStats();
+        });
+
+        btnClearExp2.addEventListener('click', () => {
+            totalCount = 0;
+            trueCount = 0;
+            falseCount = 0;
+            updateChartAndStats();
+        });
+
+
+        // THREE.JS 3D SCENE SETUP
+        const container = document.getElementById('three-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0b0f19, 0.015);
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(0, 7, 12);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        // Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below ground
+
+        // Lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 15, 10);
+        scene.add(dirLight);
+
+        const pointLight = new THREE.PointLight(0x6366f1, 1.5, 20);
+        pointLight.position.set(0, 2, 0);
+        scene.add(pointLight);
+
+        // Grid Plane Helper
+        const gridHelper = new THREE.GridHelper(30, 30, 0x1e293b, 0x0f172a);
+        gridHelper.position.y = -2;
+        scene.add(gridHelper);
+
+        // 3D Visual Assets Setup
+        // 1. Emitter box (where photon starts)
+        const emitterGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.5, 32);
+        emitterGeo.rotateZ(Math.PI / 2);
+        const emitterMat = new THREE.MeshStandardMaterial({ color: 0x312e81, metalness: 0.8, roughness: 0.2 });
+        const emitter = new THREE.Mesh(emitterGeo, emitterMat);
+        emitter.position.set(-8, 0, 0);
+        scene.add(emitter);
+
+        const emitterGlow = new THREE.Mesh(
+            new THREE.SphereGeometry(0.4, 16, 16),
+            new THREE.MeshBasicMaterial({ color: 0x818cf8 })
+        );
+        emitterGlow.position.set(-7.25, 0, 0);
+        scene.add(emitterGlow);
+
+        // 2. Polarizing Beam Splitter (PBS) - Translucent block at center
+        const pbsGeo = new THREE.BoxGeometry(1.6, 1.6, 1.6);
+        const pbsMat = new THREE.MeshPhysicalMaterial({
+            color: 0x3b82f6,
+            transparent: true,
+            opacity: 0.4,
+            roughness: 0.1,
+            metalness: 0.1,
+            transmission: 0.9,
+            ior: 1.5
+        });
+        const pbs = new THREE.Mesh(pbsGeo, pbsMat);
+        pbs.position.set(0, 0, 0);
+        scene.add(pbs);
+
+        // PBS Support frame
+        const pbsFrameGeo = new THREE.BoxGeometry(1.8, 0.2, 1.8);
+        const pbsFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 });
+        const pbsFrame = new THREE.Mesh(pbsFrameGeo, pbsFrameMat);
+        pbsFrame.position.set(0, -0.9, 0);
+        scene.add(pbsFrame);
+
+        // PBS Ring/Aperture indicator
+        const pbsRingGeo = new THREE.RingGeometry(1.0, 1.1, 32);
+        const pbsRingMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
+        const pbsRing = new THREE.Mesh(pbsRingGeo, pbsRingMat);
+        pbsRing.rotation.y = Math.PI / 2;
+        pbsRing.position.set(-0.85, 0, 0);
+        scene.add(pbsRing);
+
+        // 3. Output target 1: Straight Path - "Aligned (True)"
+        const targetTrueGeo = new THREE.TorusGeometry(0.8, 0.1, 16, 100);
+        const targetTrueMat = new THREE.MeshStandardMaterial({ color: 0x059669, emissive: 0x059669, emissiveIntensity: 0.5 });
+        const targetTrue = new THREE.Mesh(targetTrueGeo, targetTrueMat);
+        targetTrue.rotation.y = Math.PI / 2;
+        targetTrue.position.set(8, 0, 0);
+        scene.add(targetTrue);
+
+        // 4. Output target 2: Reflected (deflected) Path - "Anti-aligned (False)"
+        const targetFalseGeo = new THREE.TorusGeometry(0.8, 0.1, 16, 100);
+        const targetFalseMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, emissive: 0x1d4ed8, emissiveIntensity: 0.5 });
+        const targetFalse = new THREE.Mesh(targetFalseGeo, targetFalseMat);
+        // Pointing along Z direction
+        targetFalse.position.set(0, 0, 8);
+        scene.add(targetFalse);
+
+        // 5. Angular Arrows helper inside 3D
+        const initialVectorHelper = new THREE.Group();
+        initialVectorHelper.position.set(-4, 0, 0);
+        scene.add(initialVectorHelper);
+
+        const measurementVectorHelper = new THREE.Group();
+        measurementVectorHelper.position.set(3, 0, 0);
+        scene.add(measurementVectorHelper);
+
+        // Draw radial dials to visually inspect polarization angles in space
+        function buildDial(group, colorHex, angleDegrees, labelText) {
+            group.clear();
+            const rad = angleDegrees * Math.PI / 180;
+            
+            // Background support circle
+            const circleGeo = new THREE.RingGeometry(1.1, 1.15, 64);
+            const circleMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, side: THREE.DoubleSide });
+            const circle = new THREE.Mesh(circleGeo, circleMat);
+            circle.rotation.y = Math.PI/2;
+            group.add(circle);
+
+            // Vector lines showing the electric field plane
+            const arrowLength = 1.1;
+            const arrowGeo = new THREE.CylinderGeometry(0.04, 0.04, arrowLength * 2, 8);
+            const arrowMat = new THREE.MeshBasicMaterial({ color: colorHex });
+            const arrow = new THREE.Mesh(arrowGeo, arrowMat);
+            
+            // Rotate around x axis (which aligns with local y-z plane after rotation)
+            arrow.rotation.x = -rad;
+            group.add(arrow);
+
+            // Add terminal spheres to resemble classic dipole vector arrows
+            const sphereGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const sphereMat = new THREE.MeshBasicMaterial({ color: colorHex });
+            
+            const sp1 = new THREE.Mesh(sphereGeo, sphereMat);
+            sp1.position.set(0, arrowLength * Math.cos(rad), arrowLength * Math.sin(rad));
+            group.add(sp1);
+
+            const sp2 = new THREE.Mesh(sphereGeo, sphereMat);
+            sp2.position.set(0, -arrowLength * Math.cos(rad), -arrowLength * Math.sin(rad));
+            group.add(sp2);
+        }
+
+        function updateThreeSceneAngles() {
+            buildDial(initialVectorHelper, 0x818cf8, theta, "θ");
+            buildDial(measurementVectorHelper, 0x34d399, phi, "φ");
+
+            // Rotate ring boundary to match phi
+            pbsRing.rotation.x = -phi * Math.PI / 180;
+        }
+
+        // WAVES GEOMETRY IMPLEMENTATION
+        const waveResolution = 150;
+        const inputWaveGeo = new THREE.BufferGeometry();
+        const outputTrueWaveGeo = new THREE.BufferGeometry();
+        const outputFalseWaveGeo = new THREE.BufferGeometry();
+
+        const inputPositions = new Float32Array(waveResolution * 3);
+        const outputTruePositions = new Float32Array(waveResolution * 3);
+        const outputFalsePositions = new Float32Array(waveResolution * 3);
+
+        inputWaveGeo.setAttribute('position', new THREE.BufferAttribute(inputPositions, 3));
+        outputTrueWaveGeo.setAttribute('position', new THREE.BufferAttribute(outputTruePositions, 3));
+        outputFalseWaveGeo.setAttribute('position', new THREE.BufferAttribute(outputFalsePositions, 3));
+
+        const waveMatInput = new THREE.LineBasicMaterial({ color: 0x818cf8, linewidth: 2.5 });
+        const waveMatTrue = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2.5 });
+        const waveMatFalse = new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2.5 });
+
+        const inputWaveLine = new THREE.Line(inputWaveGeo, waveMatInput);
+        const outputTrueWaveLine = new THREE.Line(outputTrueWaveGeo, waveMatTrue);
+        const outputFalseWaveLine = new THREE.Line(outputFalseWaveGeo, waveMatFalse);
+
+        scene.add(inputWaveLine);
+        scene.add(outputTrueWaveLine);
+        scene.add(outputFalseWaveLine);
+
+        // Vector fields (arrows along the wave to show polarization direction)
+        const vectorCount = 12;
+        const inputArrows = [];
+        const outputTrueArrows = [];
+        const outputFalseArrows = [];
+
+        function initArrowSegments() {
+            const arrowGeo = new THREE.CylinderGeometry(0.015, 0.015, 1, 6);
+            const materialInput = new THREE.MeshBasicMaterial({ color: 0x4f46e5, transparent: true, opacity: 0.6 });
+            const materialTrue = new THREE.MeshBasicMaterial({ color: 0x059669, transparent: true, opacity: 0.6 });
+            const materialFalse = new THREE.MeshBasicMaterial({ color: 0x1d4ed8, transparent: true, opacity: 0.6 });
+
+            for (let i = 0; i < vectorCount; i++) {
+                // Pre-PBS space
+                const meshIn = new THREE.Mesh(arrowGeo, materialInput);
+                scene.add(meshIn);
+                inputArrows.push(meshIn);
+
+                // Post-PBS True
+                const meshTrue = new THREE.Mesh(arrowGeo, materialTrue);
+                scene.add(meshTrue);
+                outputTrueArrows.push(meshTrue);
+
+                // Post-PBS False (Deflected path along Z axis)
+                const meshFalse = new THREE.Mesh(arrowGeo, materialFalse);
+                scene.add(meshFalse);
+                outputFalseArrows.push(meshFalse);
+            }
+        }
+        initArrowSegments();
+
+        function resetWavePacket() {
+            quantumPacketT = 0;
+            isQuantumPacketActive = false;
+            measurementHasOccurred = false;
+        }
+
+        btnTrigger.addEventListener('click', () => {
+            if (isQuantumMode) {
+                // Initialize a single photon packet
+                resetWavePacket();
+                isQuantumPacketActive = true;
+                hideBanner();
+            } else {
+                // Toggle classic continuous animation
+                resetWavePacket();
+                hideBanner();
+            }
+        });
+
+        function resetCamera() {
+            camera.position.set(0, 7, 12);
+            controls.target.set(0, 0, 0);
+            controls.update();
+        }
+
+        // ANIMATION LOOP & PHYSICS CALCULATION
+        let time = 0;
+        const speed = 0.15;
+        const waveK = 2.5; // Wave number (wavelength controller)
+        const amplitude = 0.8;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            time += speed;
+
+            // 1. Math angles preparation
+            const thetaRad = theta * Math.PI / 180;
+            const phiRad = phi * Math.PI / 180;
+            const diffAngleRad = phiRad - thetaRad;
+            const cosDiff = Math.cos(diffAngleRad);
+            const sinDiff = Math.sin(diffAngleRad);
+
+            // Compute classical outputs scaling factor
+            const ampTrueClassical = amplitude * cosDiff;
+            const ampFalseClassical = amplitude * sinDiff;
+
+            // Update vector indicators rotation
+            inputArrows.forEach((arr) => {
+                arr.rotation.set(0, 0, 0);
+                arr.rotation.x = -thetaRad;
+            });
+            outputTrueArrows.forEach((arr) => {
+                arr.rotation.set(0, 0, 0);
+                arr.rotation.x = -phiRad;
+            });
+            outputFalseArrows.forEach((arr) => {
+                arr.rotation.set(0, 0, 0);
+                // The deflected path runs along Z-axis (forward). 
+                // Orthogonal output is polarized along phi + 90
+                arr.rotation.set(0, 0, 0);
+                arr.rotation.z = -(phiRad + Math.PI/2);
+            });
+
+            if (!isQuantumMode) {
+                // CLASSICAL CONTINUOUS WAVE ANIMATION
+                // Input wave: from x = -8 to x = 0
+                for (let i = 0; i < waveResolution; i++) {
+                    const pct = i / (waveResolution - 1);
+                    const x = -8 + pct * 8;
+                    const phase = waveK * x - time;
+                    const amp = amplitude * Math.sin(phase);
+                    
+                    const idx = i * 3;
+                    inputPositions[idx] = x;
+                    inputPositions[idx + 1] = amp * Math.cos(thetaRad); // Y offset
+                    inputPositions[idx + 2] = amp * Math.sin(thetaRad); // Z offset
+                }
+
+                // Output True wave (直行): from x = 0 to x = 8
+                for (let i = 0; i < waveResolution; i++) {
+                    const pct = i / (waveResolution - 1);
+                    const x = pct * 8;
+                    const phase = waveK * x - time;
+                    const amp = ampTrueClassical * Math.sin(phase);
+                    
+                    const idx = i * 3;
+                    outputTruePositions[idx] = x;
+                    outputTruePositions[idx + 1] = amp * Math.cos(phiRad);
+                    outputTruePositions[idx + 2] = amp * Math.sin(phiRad);
+                }
+
+                // Output False wave (偏折): from z = 0 to z = 8 (moving along Z-axis)
+                for (let i = 0; i < waveResolution; i++) {
+                    const pct = i / (waveResolution - 1);
+                    const z = pct * 8;
+                    const phase = waveK * z - time;
+                    // Orthogonal polarization
+                    const amp = ampFalseClassical * Math.sin(phase);
+                    
+                    const idx = i * 3;
+                    // propagates along +Z direction, x is 0
+                    outputFalsePositions[idx] = 0;
+                    outputFalsePositions[idx + 1] = amp * Math.cos(phiRad + Math.PI/2);
+                    outputFalsePositions[idx + 2] = z;
+                }
+
+                // Make classical output lines fully visible
+                waveMatInput.opacity = 1.0;
+                waveMatTrue.opacity = Math.abs(cosDiff);
+                waveMatFalse.opacity = Math.abs(sinDiff);
+
+                inputWaveLine.visible = true;
+                outputTrueWaveLine.visible = true;
+                outputFalseWaveLine.visible = true;
+
+                // Animate vector arrows (classic mode)
+                for (let i = 0; i < vectorCount; i++) {
+                    // Input Space
+                    const pctIn = i / (vectorCount - 1);
+                    const xIn = -7.5 + pctIn * 7.0;
+                    const ampIn = amplitude * Math.sin(waveK * xIn - time);
+                    inputArrows[i].position.set(xIn, ampIn * Math.cos(thetaRad), ampIn * Math.sin(thetaRad));
+                    inputArrows[i].scale.set(1, Math.abs(ampIn) * 2, 1);
+                    inputArrows[i].visible = true;
+
+                    // Output True Space
+                    const pctOut = i / (vectorCount - 1);
+                    const xOut = 0.5 + pctOut * 7.0;
+                    const ampTrue = ampTrueClassical * Math.sin(waveK * xOut - time);
+                    outputTrueArrows[i].position.set(xOut, ampTrue * Math.cos(phiRad), ampTrue * Math.sin(phiRad));
+                    outputTrueArrows[i].scale.set(1, Math.abs(ampTrue) * 2, 1);
+                    outputTrueArrows[i].visible = Math.abs(ampTrueClassical) > 0.1;
+
+                    // Output False Space
+                    const zOut = 0.5 + pctOut * 7.0;
+                    const ampFalse = ampFalseClassical * Math.sin(waveK * zOut - time);
+                    outputFalseArrows[i].position.set(0, ampFalse * Math.cos(phiRad + Math.PI/2), zOut);
+                    outputFalseArrows[i].scale.set(1, Math.abs(ampFalse) * 2, 1);
+                    outputFalseArrows[i].visible = Math.abs(ampFalseClassical) > 0.1;
+                }
+
+            } else {
+                // QUANTUM MODE (SINGLE WAVEPACKET PROPAGATION & COLLAPSE)
+                if (isQuantumPacketActive) {
+                    quantumPacketT += 0.05; // propagation time coordinate
+
+                    // Envelope parameters (Gaussian envelope)
+                    const envelopeCenter = -8 + quantumPacketT * 4; // travels from x=-8, hits center at T=2, ends at 4 (distance 16)
+                    const packetSigma = 0.8;
+
+                    // Check for measurement point collapse triggering
+                    if (envelopeCenter >= 0 && !measurementHasOccurred) {
+                        // Quantum choice event (identical to Java code Math.random() < probabilityAlign)
+                        const pAlign = cosDiff * cosDiff;
+                        lastMeasurementResult = Math.random() < pAlign;
+                        measurementHasOccurred = true;
+                        
+                        // Add directly to persistent simulation statistics of Experiment 2
+                        if (lastMeasurementResult) {
+                            trueCount++;
+                        } else {
+                            falseCount++;
+                        }
+                        totalCount++;
+                        updateChartAndStats();
+                        showBanner(lastMeasurementResult);
+                    }
+
+                    // Pre-measurement wave propagation
+                    if (envelopeCenter < 0) {
+                        for (let i = 0; i < waveResolution; i++) {
+                            const pct = i / (waveResolution - 1);
+                            const x = -8 + pct * 8;
+                            
+                            // Gaussian Wave packet
+                            const dist = x - envelopeCenter;
+                            const envelope = amplitude * Math.exp(-(dist * dist) / (2 * packetSigma * packetSigma));
+                            const osc = envelope * Math.sin(waveK * x - time * 2);
+
+                            const idx = i * 3;
+                            inputPositions[idx] = x;
+                            inputPositions[idx + 1] = osc * Math.cos(thetaRad);
+                            inputPositions[idx + 2] = osc * Math.sin(thetaRad);
+                        }
+                        // Clear output wave positions during pre-measurement
+                        clearBufferArray(outputTruePositions);
+                        clearBufferArray(outputFalsePositions);
+
+                        // Position vector arrows inside the moving packet envelope
+                        for (let i = 0; i < vectorCount; i++) {
+                            const pctIn = i / (vectorCount - 1);
+                            const xIn = -7.5 + pctIn * 7.0;
+                            const dist = xIn - envelopeCenter;
+                            const envelope = amplitude * Math.exp(-(dist * dist) / (2 * packetSigma * packetSigma));
+                            const osc = envelope * Math.sin(waveK * xIn - time * 2);
+
+                            inputArrows[i].position.set(xIn, osc * Math.cos(thetaRad), osc * Math.sin(thetaRad));
+                            inputArrows[i].scale.set(1, Math.abs(osc) * 2, 1);
+                            inputArrows[i].visible = (envelope > 0.05);
+                        }
+                        
+                        // Hide output vectors until collapsed
+                        hideArrowArray(outputTrueArrows);
+                        hideArrowArray(outputFalseArrows);
+
+                    } else {
+                        // Post-measurement collapsed propagation
+                        // Input wave dies out
+                        clearBufferArray(inputPositions);
+                        hideArrowArray(inputArrows);
+
+                        if (lastMeasurementResult === true) {
+                            // Straight direct transmission path
+                            for (let i = 0; i < waveResolution; i++) {
+                                const pct = i / (waveResolution - 1);
+                                const x = pct * 8;
+                                const dist = x - envelopeCenter;
+                                const envelope = amplitude * Math.exp(-(dist * dist) / (2 * packetSigma * packetSigma));
+                                const osc = envelope * Math.sin(waveK * x - time * 2);
+
+                                const idx = i * 3;
+                                outputTruePositions[idx] = x;
+                                outputTruePositions[idx + 1] = osc * Math.cos(phiRad);
+                                outputTruePositions[idx + 2] = osc * Math.sin(phiRad);
+                            }
+                            clearBufferArray(outputFalsePositions);
+
+                            // Arrows tracking the Aligned path
+                            for (let i = 0; i < vectorCount; i++) {
+                                const pctOut = i / (vectorCount - 1);
+                                const xOut = 0.5 + pctOut * 7.0;
+                                const dist = xOut - envelopeCenter;
+                                const envelope = amplitude * Math.exp(-(dist * dist) / (2 * packetSigma * packetSigma));
+                                const osc = envelope * Math.sin(waveK * xOut - time * 2);
+
+                                outputTrueArrows[i].position.set(xOut, osc * Math.cos(phiRad), osc * Math.sin(phiRad));
+                                outputTrueArrows[i].scale.set(1, Math.abs(osc) * 2, 1);
+                                outputTrueArrows[i].visible = (envelope > 0.05);
+                            }
+                            hideArrowArray(outputFalseArrows);
+
+                        } else {
+                            // Deflected orthogonal path
+                            clearBufferArray(outputTruePositions);
+                            hideArrowArray(outputTrueArrows);
+
+                            for (let i = 0; i < waveResolution; i++) {
+                                const pct = i / (waveResolution - 1);
+                                const z = pct * 8;
+                                const dist = z - envelopeCenter; // travels along deflected Z coordinate at same pace
+                                const envelope = amplitude * Math.exp(-(dist * dist) / (2 * packetSigma * packetSigma));
+                                const osc = envelope * Math.sin(waveK * z - time * 2);
+
+                                const idx = i * 3;
+                                outputFalsePositions[idx] = 0;
+                                outputFalsePositions[idx + 1] = osc * Math.cos(phiRad + Math.PI/2);
+                                outputFalsePositions[idx + 2] = z;
+                            }
+
+                            // Arrows tracking the Anti-Aligned path
+                            for (let i = 0; i < vectorCount; i++) {
+                                const pctOut = i / (vectorCount - 1);
+                                const zOut = 0.5 + pctOut * 7.0;
+                                const dist = zOut - envelopeCenter;
+                                const envelope = amplitude * Math.exp(-(dist * dist) / (2 * packetSigma * packetSigma));
+                                const osc = envelope * Math.sin(waveK * zOut - time * 2);
+
+                                outputFalseArrows[i].position.set(0, osc * Math.cos(phiRad + Math.PI/2), zOut);
+                                outputFalseArrows[i].scale.set(1, Math.abs(osc) * 2, 1);
+                                outputFalseArrows[i].visible = (envelope > 0.05);
+                            }
+                        }
+                    }
+
+                    // Reset packet automatically when it exits the borders
+                    if (envelopeCenter > 10) {
+                        isQuantumPacketActive = false;
+                        resetWavePacket();
+                    }
+                } else {
+                    // Packet idle: clear all wave lines and vectors
+                    clearBufferArray(inputPositions);
+                    clearBufferArray(outputTruePositions);
+                    clearBufferArray(outputFalsePositions);
+                    hideArrowArray(inputArrows);
+                    hideArrowArray(outputTrueArrows);
+                    hideArrowArray(outputFalseArrows);
+                }
+            }
+
+            // Tell Three.js that the vertices of the buffer lines have been modified
+            inputWaveGeo.attributes.position.needsUpdate = true;
+            outputTrueWaveGeo.attributes.position.needsUpdate = true;
+            outputFalseWaveGeo.attributes.position.needsUpdate = true;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Helper cleanup utilities
+        function clearBufferArray(floatArray) {
+            for (let i = 0; i < floatArray.length; i++) {
+                floatArray[i] = 0;
+            }
+        }
+
+        function hideArrowArray(arrowArray) {
+            arrowArray.forEach(arr => {
+                arr.visible = false;
+            });
+        }
+
+        // Resize handler
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Initialization run on load
+        window.onload = function() {
+            updateParameters();
+            updateChartAndStats();
+            animate();
+        };
+
+    </script>
+</body>
+</html>
