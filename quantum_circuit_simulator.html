@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Circuit Simulator - Interactive Gate Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.11.0/math.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gate-item {
+            cursor: grab;
+            transition: all 0.2s;
+        }
+        
+        .gate-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        
+        .gate-item:active {
+            cursor: grabbing;
+        }
+        
+        .circuit-canvas {
+            background: 
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        .qubit-line {
+            stroke: rgba(148, 163, 184, 0.5);
+            stroke-width: 2;
+        }
+        
+        .gate-on-canvas {
+            cursor: move;
+            transition: all 0.2s;
+        }
+        
+        .gate-on-canvas:hover {
+            filter: brightness(1.2);
+        }
+        
+        .math-formula {
+            font-family: 'Courier New', monospace;
+            background: rgba(30, 41, 59, 0.5);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border-left: 3px solid #6366f1;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
+        
+        .state-vector {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        
+        .probability-bar {
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body class="text-slate-100">
+    <div class="flex h-screen">
+        <!-- Left Sidebar - Gate Menu -->
+        <div class="w-80 glass-panel border-r border-slate-700 flex flex-col">
+            <div class="p-6 border-b border-slate-700">
+                <h1 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+                    Quantum Circuit Builder
+                </h1>
+                <p class="text-sm text-slate-400 mt-2">Drag gates to build your quantum circuit</p>
+            </div>
+            
+            <!-- Quantum Gates Section -->
+            <div class="flex-1 overflow-y-auto p-4">
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center">
+                        <i data-lucide="zap" class="w-4 h-4 mr-2"></i>
+                        Single-Qubit Gates
+                    </h3>
+                    <div class="space-y-2">
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="H">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-indigo-400">H - Hadamard</div>
+                                    <div class="text-xs text-slate-400">Creates superposition</div>
+                                </div>
+                                <div class="w-10 h-10 bg-indigo-500 rounded flex items-center justify-center font-bold">H</div>
+                            </div>
+                        </div>
+                        
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="X">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-red-400">X - Pauli-X (NOT)</div>
+                                    <div class="text-xs text-slate-400">Bit flip gate</div>
+                                </div>
+                                <div class="w-10 h-10 bg-red-500 rounded flex items-center justify-center font-bold">X</div>
+                            </div>
+                        </div>
+                        
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="Y">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-green-400">Y - Pauli-Y</div>
+                                    <div class="text-xs text-slate-400">Y-axis rotation</div>
+                                </div>
+                                <div class="w-10 h-10 bg-green-500 rounded flex items-center justify-center font-bold">Y</div>
+                            </div>
+                        </div>
+                        
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="Z">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-blue-400">Z - Pauli-Z</div>
+                                    <div class="text-xs text-slate-400">Phase flip gate</div>
+                                </div>
+                                <div class="w-10 h-10 bg-blue-500 rounded flex items-center justify-center font-bold">Z</div>
+                            </div>
+                        </div>
+                        
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="S">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-purple-400">S - Phase Gate</div>
+                                    <div class="text-xs text-slate-400">π/2 phase shift</div>
+                                </div>
+                                <div class="w-10 h-10 bg-purple-500 rounded flex items-center justify-center font-bold">S</div>
+                            </div>
+                        </div>
+                        
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="T">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-pink-400">T - T Gate</div>
+                                    <div class="text-xs text-slate-400">π/4 phase shift</div>
+                                </div>
+                                <div class="w-10 h-10 bg-pink-500 rounded flex items-center justify-center font-bold">T</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center">
+                        <i data-lucide="link" class="w-4 h-4 mr-2"></i>
+                        Multi-Qubit Gates
+                    </h3>
+                    <div class="space-y-2">
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="CNOT">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-cyan-400">CNOT - Controlled-NOT</div>
+                                    <div class="text-xs text-slate-400">Entanglement gate</div>
+                                </div>
+                                <div class="w-10 h-10 bg-cyan-500 rounded flex items-center justify-center font-bold text-xs">CX</div>
+                            </div>
+                        </div>
+                        
+                        <div class="gate-item glass-panel p-3 rounded-lg" draggable="true" data-gate="SWAP">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-orange-400">SWAP Gate</div>
+                                    <div class="text-xs text-slate-400">Swap qubit states</div>
+                                </div>
+                                <div class="w-10 h-10 bg-orange-500 rounded flex items-center justify-center font-bold text-xs">⇄</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-300 mb-3 flex items-center">
+                        <i data-lucide="settings" class="w-4 h-4 mr-2"></i>
+                        Circuit Controls
+                    </h3>
+                    <div class="space-y-2">
+                        <label class="block text-sm text-slate-300">
+                            Number of Qubits:
+                            <select id="qubitCount" class="w-full mt-1 bg-slate-700 border border-slate-600 rounded px-3 py-2">
+                                <option value="1">1 Qubit</option>
+                                <option value="2" selected>2 Qubits</option>
+                                <option value="3">3 Qubits</option>
+                                <option value="4">4 Qubits</option>
+                            </select>
+                        </label>
+                        
+                        <button id="clearCircuit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i>
+                            Clear Circuit
+                        </button>
+                        
+                        <button id="runCircuit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded transition">
+                            <i data-lucide="play" class="w-4 h-4 inline mr-2"></i>
+                            Run Simulation
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col">
+            <!-- Circuit Canvas -->
+            <div class="flex-1 p-6 overflow-auto">
+                <div class="glass-panel rounded-lg p-6 h-full">
+                    <h2 class="text-xl font-bold mb-4 flex items-center">
+                        <i data-lucide="cpu" class="w-5 h-5 mr-2"></i>
+                        Quantum Circuit
+                    </h2>
+                    <div id="circuitCanvas" class="circuit-canvas bg-slate-900 rounded-lg relative" style="min-height: 400px;">
+                        <!-- SVG will be inserted here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom Panel - Results and Explanations -->
+            <div class="h-80 border-t border-slate-700 flex">
+                <!-- State Vector Display -->
+                <div class="flex-1 glass-panel p-4 overflow-y-auto border-r border-slate-700">
+                    <h3 class="text-lg font-bold mb-3 flex items-center">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 mr-2"></i>
+                        Quantum State
+                    </h3>
+                    <div id="stateVector" class="space-y-2">
+                        <div class="text-sm text-slate-400">Run simulation to see quantum state</div>
+                    </div>
+                </div>
+                
+                <!-- Mathematical Explanation -->
+                <div class="flex-1 glass-panel p-4 overflow-y-auto">
+                    <h3 class="text-lg font-bold mb-3 flex items-center">
+                        <i data-lucide="book-open" class="w-5 h-5 mr-2"></i>
+                        Gate Mathematics
+                    </h3>
+                    <div id="gateExplanation" class="text-sm space-y-3">
+                        <p class="text-slate-400">Click on a gate to see its mathematical representation</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+        
+        // Quantum Gate Definitions with Matrices
+        const GATES = {
+            H: {
+                name: 'Hadamard',
+                matrix: [[1/Math.sqrt(2), 1/Math.sqrt(2)], [1/Math.sqrt(2), -1/Math.sqrt(2)]],
+                color: '#6366f1',
+                description: 'Creates equal superposition of |0⟩ and |1⟩',
+                formula: 'H = 1/√2 [[1, 1], [1, -1]]',
+                explanation: 'The Hadamard gate transforms basis states into superposition states. It maps |0⟩ → (|0⟩ + |1⟩)/√2 and |1⟩ → (|0⟩ - |1⟩)/√2.'
+            },
+            X: {
+                name: 'Pauli-X (NOT)',
+                matrix: [[0, 1], [1, 0]],
+                color: '#ef4444',
+                description: 'Quantum NOT gate - flips |0⟩ ↔ |1⟩',
+                formula: 'X = [[0, 1], [1, 0]]',
+                explanation: 'The Pauli-X gate is the quantum equivalent of the classical NOT gate. It flips |0⟩ to |1⟩ and vice versa.'
+            },
+            Y: {
+                name: 'Pauli-Y',
+                matrix: [[0, math.complex(0, -1)], [math.complex(0, 1), 0]],
+                color: '#22c55e',
+                description: 'Rotation around Y-axis by π',
+                formula: 'Y = [[0, -i], [i, 0]]',
+                explanation: 'The Pauli-Y gate rotates the qubit state around the Y-axis of the Bloch sphere by π radians.'
+            },
+            Z: {
+                name: 'Pauli-Z',
+                matrix: [[1, 0], [0, -1]],
+                color: '#3b82f6',
+                description: 'Phase flip gate',
+                formula: 'Z = [[1, 0], [0, -1]]',
+                explanation: 'The Pauli-Z gate applies a phase flip: |0⟩ remains unchanged, while |1⟩ → -|1⟩.'
+            },
+            S: {
+                name: 'Phase (S)',
+                matrix: [[1, 0], [0, math.complex(0, 1)]],
+                color: '#a855f7',
+                description: 'Phase shift by π/2',
+                formula: 'S = [[1, 0], [0, i]]',
+                explanation: 'The S gate (phase gate) applies a π/2 phase shift to the |1⟩ state: |1⟩ → i|1⟩.'
+            },
+            T: {
+                name: 'T Gate',
+                matrix: [[1, 0], [0, math.complex(Math.cos(Math.PI/4), Math.sin(Math.PI/4))]],
+                color: '#ec4899',
+                description: 'Phase shift by π/4',
+                formula: 'T = [[1, 0], [0, e^(iπ/4)]]',
+                explanation: 'The T gate applies a π/4 phase shift to the |1⟩ state. It is important for quantum algorithms.'
+            },
+            CNOT: {
+                name: 'Controlled-NOT',
+                matrix: [[1,0,0,0], [0,1,0,0], [0,0,0,1], [0,0,1,0]],
+                color: '#06b6d4',
+                description: 'Flips target if control is |1⟩',
+                formula: 'CNOT = [[1,0,0,0], [0,1,0,0], [0,0,0,1], [0,0,1,0]]',
+                explanation: 'The CNOT gate flips the target qubit if and only if the control qubit is |1⟩. It creates entanglement.',
+                multiQubit: true
+            },
+            SWAP: {
+                name: 'SWAP',
+                matrix: [[1,0,0,0], [0,0,1,0], [0,1,0,0], [0,0,0,1]],
+                color: '#f97316',
+                description: 'Swaps states of two qubits',
+                formula: 'SWAP = [[1,0,0,0], [0,0,1,0], [0,1,0,0], [0,0,0,1]]',
+                explanation: 'The SWAP gate exchanges the quantum states of two qubits.',
+                multiQubit: true
+            }
+        };
+        
+        // Circuit State
+        let circuit = {
+            numQubits: 2,
+            gates: [], // {type, qubit, column, control (for CNOT)}
+            columns: 0
+        };
+        
+        let selectedGate = null;
+        
+        // Initialize Circuit
+        function initCircuit() {
+            circuit.numQubits = parseInt(document.getElementById('qubitCount').value);
+            circuit.gates = [];
+            circuit.columns = 0;
+            renderCircuit();
+        }
+        
+        // Render Circuit
+        function renderCircuit() {
+            const canvas = document.getElementById('circuitCanvas');
+            const width = Math.max(800, (circuit.columns + 2) * 100);
+            const height = circuit.numQubits * 100 + 100;
+            
+            canvas.innerHTML = `
+                <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+                    ${renderQubitLines()}
+                    ${renderGates()}
+                </svg>
+            `;
+            
+            // Add click handlers to gates
+            canvas.querySelectorAll('.gate-on-canvas').forEach(gate => {
+                gate.addEventListener('click', () => showGateInfo(gate.dataset.gate));
+                gate.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    removeGate(parseInt(gate.dataset.index));
+                });
+            });
+        }
+        
+        function renderQubitLines() {
+            let svg = '';
+            for (let i = 0; i < circuit.numQubits; i++) {
+                const y = 50 + i * 100;
+                svg += `
+                    <line x1="50" y1="${y}" x2="${Math.max(750, (circuit.columns + 1) * 100)}" y2="${y}" class="qubit-line"/>
+                    <text x="20" y="${y + 5}" fill="#94a3b8" font-size="14">q${i}</text>
+                    <text x="${Math.max(760, (circuit.columns + 1) * 100 + 10)}" y="${y + 5}" fill="#94a3b8" font-size="14">q${i}</text>
+                `;
+            }
+            return svg;
+        }
+        
+        function renderGates() {
+            let svg = '';
+            circuit.gates.forEach((gate, index) => {
+                const x = 100 + gate.column * 100;
+                const y = 50 + gate.qubit * 100;
+                const gateInfo = GATES[gate.type];
+                
+                if (gate.type === 'CNOT') {
+                    const controlY = 50 + gate.control * 100;
+                    const targetY = y;
+                    
+                    // Draw line between control and target
+                    svg += `<line x1="${x}" y1="${controlY}" x2="${x}" y2="${targetY}" stroke="${gateInfo.color}" stroke-width="2"/>`;
+                    
+                    // Control dot
+                    svg += `<circle cx="${x}" cy="${controlY}" r="8" fill="${gateInfo.color}"/>`;
+                    
+                    // Target (⊕)
+                    svg += `
+                        <circle cx="${x}" cy="${targetY}" r="20" fill="none" stroke="${gateInfo.color}" stroke-width="2" class="gate-on-canvas" data-gate="${gate.type}" data-index="${index}"/>
+                        <line x1="${x-15}" y1="${targetY}" x2="${x+15}" y2="${targetY}" stroke="${gateInfo.color}" stroke-width="2"/>
+                        <line x1="${x}" y1="${targetY-15}" x2="${x}" y2="${targetY+15}" stroke="${gateInfo.color}" stroke-width="2"/>
+                    `;
+                } else if (gate.type === 'SWAP') {
+                    const qubit1Y = y;
+                    const qubit2Y = 50 + gate.target * 100;
+                    
+                    // Draw line between qubits
+                    svg += `<line x1="${x}" y1="${qubit1Y}" x2="${x}" y2="${qubit2Y}" stroke="${gateInfo.color}" stroke-width="2"/>`;
+                    
+                    // X marks
+                    svg += `
+                        <line x1="${x-10}" y1="${qubit1Y-10}" x2="${x+10}" y2="${qubit1Y+10}" stroke="${gateInfo.color}" stroke-width="2" class="gate-on-canvas" data-gate="${gate.type}" data-index="${index}"/>
+                        <line x1="${x-10}" y1="${qubit1Y+10}" x2="${x+10}" y2="${qubit1Y-10}" stroke="${gateInfo.color}" stroke-width="2"/>
+                        <line x1="${x-10}" y1="${qubit2Y-10}" x2="${x+10}" y2="${qubit2Y+10}" stroke="${gateInfo.color}" stroke-width="2"/>
+                        <line x1="${x-10}" y1="${qubit2Y+10}" x2="${x+10}" y2="${qubit2Y-10}" stroke="${gateInfo.color}" stroke-width="2"/>
+                    `;
+                } else {
+                    // Single qubit gate
+                    svg += `
+                        <rect x="${x-25}" y="${y-25}" width="50" height="50" fill="${gateInfo.color}" rx="5" class="gate-on-canvas" data-gate="${gate.type}" data-index="${index}"/>
+                        <text x="${x}" y="${y+8}" text-anchor="middle" fill="white" font-size="20" font-weight="bold" pointer-events="none">${gate.type}</text>
+                    `;
+                }
+            });
+            return svg;
+        }
+        
+        // Drag and Drop Handlers
+        document.querySelectorAll('.gate-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                selectedGate = e.target.dataset.gate;
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        });
+        
+        document.getElementById('circuitCanvas').addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        
+        document.getElementById('circuitCanvas').addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (!selectedGate) return;
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Calculate qubit and column
+            const qubit = Math.floor((y - 25) / 100);
+            const column = Math.floor((x - 75) / 100);
+            
+            if (qubit >= 0 && qubit < circuit.numQubits && column >= 0) {
+                if (selectedGate === 'CNOT') {
+                    // For CNOT, ask for control qubit
+                    const control = prompt(`Enter control qubit (0-${circuit.numQubits-1}):`, '0');
+                    if (control !== null) {
+                        const controlQubit = parseInt(control);
+                        if (controlQubit >= 0 && controlQubit < circuit.numQubits && controlQubit !== qubit) {
+                            addGate(selectedGate, qubit, column, controlQubit);
+                        }
+                    }
+                } else if (selectedGate === 'SWAP') {
+                    const target = prompt(`Enter target qubit to swap with (0-${circuit.numQubits-1}):`, qubit < circuit.numQubits - 1 ? (qubit + 1).toString() : '0');
+                    if (target !== null) {
+                        const targetQubit = parseInt(target);
+                        if (targetQubit >= 0 && targetQubit < circuit.numQubits && targetQubit !== qubit) {
+                            addGate(selectedGate, qubit, column, null, targetQubit);
+                        }
+                    }
+                } else {
+                    addGate(selectedGate, qubit, column);
+                }
+            }
+            
+            selectedGate = null;
+        });
+        
+        function addGate(type, qubit, column, control = null, target = null) {
+            circuit.gates.push({ type, qubit, column, control, target });
+            circuit.columns = Math.max(circuit.columns, column + 1);
+            renderCircuit();
+        }
+        
+        function removeGate(index) {
+            circuit.gates.splice(index, 1);
+            renderCircuit();
+        }
+        
+        // Show Gate Information
+        function showGateInfo(gateType) {
+            const gate = GATES[gateType];
+            const explanation = document.getElementById('gateExplanation');
+            
+            explanation.innerHTML = `
+                <div class="space-y-3">
+                    <div>
+                        <h4 class="font-bold text-lg" style="color: ${gate.color}">${gate.name}</h4>
+                        <p class="text-slate-300 mt-1">${gate.description}</p>
+                    </div>
+                    
+                    <div class="math-formula">
+                        <div class="text-xs text-slate-400 mb-1">Matrix Representation:</div>
+                        <div class="font-mono text-sm">${gate.formula}</div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-xs text-slate-400 mb-1">Explanation:</div>
+                        <p class="text-slate-300 text-sm">${gate.explanation}</p>
+                    </div>
+                    
+                    ${renderMatrixVisualization(gate.matrix)}
+                </div>
+            `;
+        }
+        
+        function renderMatrixVisualization(matrix) {
+            let html = '<div class="math-formula mt-3"><div class="text-xs text-slate-400 mb-2">Matrix Values:</div><table class="w-full text-center text-xs">';
+            
+            for (let i = 0; i < matrix.length; i++) {
+                html += '<tr>';
+                for (let j = 0; j < matrix[i].length; j++) {
+                    const val = matrix[i][j];
+                    let displayVal;
+                    if (typeof val === 'object' && val.re !== undefined) {
+                        // Complex number
+                        displayVal = `${val.re.toFixed(3)}${val.im >= 0 ? '+' : ''}${val.im.toFixed(3)}i`;
+                    } else {
+                        displayVal = val.toFixed(3);
+                    }
+                    html += `<td class="border border-slate-600 p-2">${displayVal}</td>`;
+                }
+                html += '</tr>';
+            }
+            
+            html += '</table></div>';
+            return html;
+        }
+        
+        // Quantum State Simulation
+        function runSimulation() {
+            // Initialize state vector |00...0⟩
+            const stateSize = Math.pow(2, circuit.numQubits);
+            let state = new Array(stateSize).fill(0).map(() => math.complex(0, 0));
+            state[0] = math.complex(1, 0); // |00...0⟩
+            
+            // Apply gates in order
+            const sortedGates = [...circuit.gates].sort((a, b) => a.column - b.column);
+            
+            for (const gate of sortedGates) {
+                state = applyGate(state, gate);
+            }
+            
+            displayState(state);
+        }
+        
+        function applyGate(state, gate) {
+            const gateInfo = GATES[gate.type];
+            const n = circuit.numQubits;
+            const stateSize = state.length;
+            
+            if (gate.type === 'CNOT') {
+                // Apply CNOT gate
+                const newState = [...state];
+                for (let i = 0; i < stateSize; i++) {
+                    const controlBit = (i >> (n - 1 - gate.control)) & 1;
+                    const targetBit = (i >> (n - 1 - gate.qubit)) & 1;
+                    
+                    if (controlBit === 1) {
+                        const flippedIndex = i ^ (1 << (n - 1 - gate.qubit));
+                        newState[flippedIndex] = state[i];
+                    } else {
+                        newState[i] = state[i];
+                    }
+                }
+                return newState;
+            } else if (gate.type === 'SWAP') {
+                const newState = [...state];
+                for (let i = 0; i < stateSize; i++) {
+                    const bit1 = (i >> (n - 1 - gate.qubit)) & 1;
+                    const bit2 = (i >> (n - 1 - gate.target)) & 1;
+                    
+                    if (bit1 !== bit2) {
+                        const swappedIndex = i ^ (1 << (n - 1 - gate.qubit)) ^ (1 << (n - 1 - gate.target));
+                        newState[swappedIndex] = state[i];
+                    } else {
+                        newState[i] = state[i];
+                    }
+                }
+                return newState;
+            } else {
+                // Single qubit gate
+                const newState = new Array(stateSize).fill(0).map(() => math.complex(0, 0));
+                const matrix = gateInfo.matrix;
+                
+                for (let i = 0; i < stateSize; i++) {
+                    const targetBit = (i >> (n - 1 - gate.qubit)) & 1;
+                    const flippedIndex = i ^ (1 << (n - 1 - gate.qubit));
+                    
+                    if (targetBit === 0) {
+                        newState[i] = math.add(
+                            math.multiply(matrix[0][0], state[i]),
+                            math.multiply(matrix[0][1], state[flippedIndex])
+                        );
+                    } else {
+                        newState[i] = math.add(
+                            math.multiply(matrix[1][0], state[flippedIndex]),
+                            math.multiply(matrix[1][1], state[i])
+                        );
+                    }
+                }
+                
+                return newState;
+            }
+        }
+        
+        function displayState(state) {
+            const stateDiv = document.getElementById('stateVector');
+            let html = '<div class="space-y-2">';
+            
+            for (let i = 0; i < state.length; i++) {
+                const amplitude = state[i];
+                const probability = math.abs(math.multiply(amplitude, math.conj(amplitude)));
+                
+                if (probability > 0.001) {
+                    const binaryState = i.toString(2).padStart(circuit.numQubits, '0');
+                    const ampReal = amplitude.re.toFixed(4);
+                    const ampImag = amplitude.im.toFixed(4);
+                    const probPercent = (probability * 100).toFixed(2);
+                    
+                    html += `
+                        <div class="glass-panel p-3 rounded">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-mono font-bold">|${binaryState}⟩</span>
+                                <span class="text-sm text-slate-400">${probPercent}%</span>
+                            </div>
+                            <div class="text-xs text-slate-400 mb-1">
+                                Amplitude: ${ampReal} ${ampImag >= 0 ? '+' : ''}${ampImag}i
+                            </div>
+                            <div class="w-full bg-slate-700 rounded-full h-2">
+                                <div class="probability-bar bg-indigo-500 h-2 rounded-full" style="width: ${probPercent}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += '</div>';
+            stateDiv.innerHTML = html;
+        }
+        
+        // Event Listeners
+        document.getElementById('qubitCount').addEventListener('change', initCircuit);
+        document.getElementById('clearCircuit').addEventListener('click', initCircuit);
+        document.getElementById('runCircuit').addEventListener('click', runSimulation);
+        
+        // Initialize
+        initCircuit();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
